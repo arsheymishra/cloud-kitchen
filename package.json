@@ -9,32 +9,33 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "next": "^14.0.0",
-    "mongoose": "^8.0.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "cloudinary": "^2.0.0",
-    "lucide-react": "latest",
-    "@radix-ui/react-tabs": "latest",
     "@radix-ui/react-label": "latest",
     "@radix-ui/react-select": "latest",
     "@radix-ui/react-slot": "latest",
+    "@radix-ui/react-tabs": "latest",
+    "bcryptjs": "^2.4.3",
     "class-variance-authority": "latest",
+    "cloudinary": "^2.0.0",
     "clsx": "latest",
+    "dotenv": "^17.3.1",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "latest",
+    "mongoose": "^8.0.0",
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "tailwind-merge": "latest",
     "tailwindcss-animate": "latest"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "^14.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
-    "eslint": "^8",
-    "eslint-config-next": "^14.0.0"
+    "typescript": "^5"
   }
 }
