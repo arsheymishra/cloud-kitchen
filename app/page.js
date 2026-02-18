@@ -41,7 +41,31 @@ export default function App() {
   
   // Loading states
   const [loading, setLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
   
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+
+    const loadGoogleScript = () => {
+      if (document.getElementById('google-identity-script')) return;
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.id = 'google-identity-script';
+      script.onload = () => setGoogleReady(true);
+      document.head.appendChild(script);
+    };
+
+    if (window.google?.accounts?.id) {
+      setGoogleReady(true);
+      return;
+    }
+
+    loadGoogleScript();
+  }, []);
+
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
@@ -142,6 +166,50 @@ export default function App() {
     }
   };
   
+  const handleGoogleAuth = async () => {
+    if (!window.google?.accounts?.id) {
+      setAuthError('Google Sign-In is not ready yet. Please try again.');
+      return;
+    }
+
+    setAuthError('');
+    setLoading(true);
+
+    window.google.accounts.id.initialize({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      callback: async (response) => {
+        try {
+          const apiResponse = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              idToken: response.credential,
+            }),
+          });
+
+          const data = await apiResponse.json();
+
+          if (!apiResponse.ok) {
+            setAuthError(data.error || 'Google authentication failed');
+            return;
+          }
+
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          setToken(data.token);
+          setUser(data.user);
+          setCurrentView(data.user.role === 'admin' ? 'admin-dashboard' : 'menu');
+        } catch (error) {
+          setAuthError('Google authentication failed. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+
+    window.google.accounts.id.prompt();
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -378,6 +446,14 @@ export default function App() {
                 >
                   {loading ? 'Loading...' : 'Login'}
                 </Button>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={handleGoogleAuth}
+                  disabled={loading || !googleReady || !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+                >
+                  Continue with Google
+                </Button>
                 <div className="text-xs text-center text-muted-foreground mt-4">
                   <p>Default Admin Credentials:</p>
                   <p>Email: admin@cloudkitchen.com</p>
@@ -437,6 +513,14 @@ export default function App() {
                   disabled={loading}
                 >
                   {loading ? 'Loading...' : 'Register'}
+                </Button>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={handleGoogleAuth}
+                  disabled={loading || !googleReady || !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+                >
+                  Register with Google
                 </Button>
               </TabsContent>
             </Tabs>
