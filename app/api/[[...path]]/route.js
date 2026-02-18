@@ -29,7 +29,11 @@ async function connectDB() {
       serverSelectionTimeoutMS: 30000,
     };
 
-    cached.promise = mongoose.connect(process.env.MONGO_URL, opts).then((mongoose) => {
+    const mongoUri = process.env.MONGO_URL || process.env.MONGO_URI;
+    if (!mongoUri) {
+      throw new Error('MongoDB connection string is missing. Set MONGO_URL or MONGO_URI.');
+    }
+    cached.promise = mongoose.connect(mongoUri, opts).then((mongoose) => {
       console.log('MongoDB connected successfully');
       return mongoose;
     });
@@ -50,7 +54,7 @@ async function connectDB() {
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String, default: null },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   createdAt: { type: Date, default: Date.now },
 });
@@ -202,6 +206,13 @@ export async function POST(request) {
           { status: 401 }
         );
       }
+
+      if (!user.password) {
+        return NextResponse.json(
+          { error: 'This account uses Google Sign-In. Please continue with Google.' },
+          { status: 400 }
+        );
+      }
       
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
@@ -219,6 +230,69 @@ export async function POST(request) {
       
       return NextResponse.json({
         message: 'Login successful',
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    }
+
+    if (path === 'auth/google') {
+      const body = await request.json();
+      const { idToken } = body;
+
+      if (!idToken) {
+        return NextResponse.json(
+          { error: 'Google ID token is required' },
+          { status: 400 }
+        );
+      }
+
+      const googleResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+      const googleData = await googleResponse.json();
+
+      if (!googleResponse.ok || googleData.error_description) {
+        return NextResponse.json(
+          { error: 'Invalid Google token' },
+          { status: 401 }
+        );
+      }
+
+      const allowedClientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (allowedClientId && googleData.aud !== allowedClientId) {
+        return NextResponse.json(
+          { error: 'Google token audience mismatch' },
+          { status: 401 }
+        );
+      }
+
+      if (googleData.email_verified !== 'true') {
+        return NextResponse.json(
+          { error: 'Google email is not verified' },
+          { status: 401 }
+        );
+      }
+
+      let user = await User.findOne({ email: googleData.email });
+      if (!user) {
+        user = await User.create({
+          name: googleData.name || googleData.given_name || 'Google User',
+          email: googleData.email,
+          role: 'user',
+        });
+      }
+
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      return NextResponse.json({
+        message: 'Google login successful',
         token,
         user: {
           id: user._id,
