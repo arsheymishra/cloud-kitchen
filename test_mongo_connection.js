@@ -1,8 +1,9 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 
 async function testConnection() {
   console.log('Testing MongoDB connection...');
-  console.log('MONGO_URL:', process.env.MONGO_URL);
+  console.log('MONGO_URL:', process.env.MONGO_URL ? 'Set' : 'Not set');
   
   try {
     const start = Date.now();
